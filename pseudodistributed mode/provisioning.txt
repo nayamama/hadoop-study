@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+function add_hadoop_user(){
+  [[ $(sudo cat /etc/passwd | sudo grep hadoop) ]] && sudo userdel -r hadoop
+  sudo useradd hadoop
+  sudo echo "hadoop:hadoop" | sudo chpasswd
+  sudo gpasswd -a hadoop wheel
+  sudo su
+  # cd /etc/sudoers 
+  # visudo
+  echo "hadoop ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers 
+  sudo -iu hadoop
+  [[ $(tail -1 /etc/passwd) == *hadoop* ]] && echo "${green}user hadoop added succesfully${reset}" >> /home/hadoop/hadoop_install.log || echo "${red}Fail to add user hadoop${reset}" >> /home/hadoop/hadoop_install.log
+}
+
+
+function install_java(){
+  echo "Install Java"
+  sudo yum -y install java-1.8.0-openjdk
+  sudo yum -y install java-1.8.0-openjdk-devel
+  echo "export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.181-3.b13.el7_5.x86_64" >> .bashrc
+  echo "export JRE_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.181-3.b13.el7_5.x86_64/jre" >> .bashrc
+  source .bashrc
+  
+  [[ $(which java) ]] && echo "${green}Java install complete${reset}" >> /home/hadoop/hadoop_install.log || echo "${red}Fail to install java${reset}" >> /home/hadoop/hadoop_install.log 
+  [[ ! -z "${JAVA_HOME}" ]] && echo "${green}JAVA_HOME is set${reset}" >> /home/hadoop/hadoop_install.log || echo "${red}$JAVA_HOME is not set${reset}" >> /home/hadoop/hadoop_install.log
+  [[ ! -z "${JRE_HOME}" ]] && echo "${green}JRE_HOME is set${reset}" >> /home/hadoop/hadoop_install.log || echo "${red}$JRE_HOME is not set${reset}" >> /home/hadoop/hadoop_install.log
+}
+
+
+function install_hadoop(){
+  echo "Install Hadoop"
+  sudo yum -y install wget
+  sudo wget https://www.apache.org/dist/hadoop/core/stable2/hadoop-2.9.1.tar.gz
+  sudo  cp hadoop-2.9.1.tar.gz /usr/etc/ 
+  sudo rm hadoop-2.9.1.tar.gz
+  cd /usr/etc/
+  sudo tar -xvf hadoop-2.9.1.tar.gz
+  
+  cd ~
+  echo "export HADOOP_PREFIX=/usr/etc/hadoop-2.9.1" >> .bashrc
+  echo "export HADOOP_HOME=$HADOOP_PREFIX" >> .bashrc
+  echo "export HADOOP_COMMON_HOME=$HADOOP_PREFIX" >> .bashrc
+  echo "export HADOOP_HDFS_HOME=$HADOOP_PREFIX" >> .bashrc
+  echo "export HADOOP_MAPRED_HOME=$HADOOP_PREFIX" >> .bashrc
+  echo "export HADOOP_YARN_HOME=$HADOOP_PREFIX" >> .bashrc
+  echo "export HADOOP_CONF_DIR=~/hadoop-config" >> .bashrc
+  echo "export PATH=$PATH:$HADOOP_PREFIX/sbin:$HADOOP_PREFIX/bin:$JAVA_HOME/bin:$JRE_HOME/bin" >> .bashrc
+  source .bashrc
+  
+   [[ $(which hadoop) ]] && echo "${green}Hadoop install complete${reset}" >> /home/hadoop/hadoop_install.log || echo "${red}Fail to install Hadoop${reset}" >> /home/hadoop/hadoop_i nstall.log
+   
+   [[ ! -z "${HADOOP_PREFIX}" ]] && echo "${green}HADOOP_HOME is set${reset}" >> /home/hadoop/hadoop_install.log || echo "${red}$HADOOP_HOME is not set${reset}" >> /home/hadoop/hado op_install.log
+  
+}
+
+  
+function() config_hadoop(){
+   cd
+   
+   # pull and untar config files
+   wget https://sqroot-portal.sqroot.local/download_depot/lab_dev/hadoop-config.tar.gz --no-check-certificate
+   tar -xvf hadoop-config.tar.gz
+   rm hadoop-config.tar.gz
+   
+   # config SSH
+   ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+   cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+   
+   # fix bug for hadoop native lib
+   cd /usr/lib64
+   sudo ln -s libcrypto.so.1.0.2k libcrypto.so
+   
+   # prepare folders for hadoop
+   cd
+   mkdir hadoop_data
+   mkdir hadoop_namenode
+   
+   # format the HDFS filesystem
+   hadoop namenode -format
+ }
+
+red=`tput setaf 1`
+green=`tput setaf 2`
+reset=`tput sgr0`
+
+add_hadoop_user
+sleep(5)
+install_java
+install_hadoop
+config_hadoop
+
+echo "DONE"
