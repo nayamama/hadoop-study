@@ -17,6 +17,6 @@ Vagrant.configure("2") do |config|
     end
     server.vm.hostname = "hadoop-test01"
     server.vm.network :public_network, use_dhcp_assigned_default_route: true
-    #server.vm.provision :shell, path: "provision-mongod", args: ENV['ARGS']
+    server.vm.provision :shell, path: "provisioning.sh", args: ENV['ARGS']
   end
 end
